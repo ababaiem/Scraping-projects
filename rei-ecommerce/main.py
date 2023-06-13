@@ -1,4 +1,4 @@
-import httpx
+from httpx import Client
 from selectolax.parser import HTMLParser
 from dataclasses import dataclass
 from urllib.parse import urljoin
@@ -20,8 +20,8 @@ class Response:
     body_html: HTMLParser
     next_page: dict
 
-def get_page(client, url):
-    def get_next_page(html):
+def get_page(client: Client, url: str) -> Response:
+    def get_next_page(html: HTMLParser) -> dict[str, str | bool]:
         query = 'a[data-id=pagination-test-link-next]'
         next_page = html.css_first(query)
         return next_page.attributes if next_page else {'href': False}
@@ -31,7 +31,7 @@ def get_page(client, url):
     next_page = get_next_page(html)
     return Response(body_html=html, next_page=next_page)
 
-def parse_pages(client, url):
+def parse_pages(client: Client, url: str) -> list[Response]:
     pages = []
     while True:
         page = get_page(client, url)
@@ -43,8 +43,8 @@ def parse_pages(client, url):
     return pages
 
 
-def parse_detail(html) -> Product:
-    def extract_text(html, selector, index) -> str:
+def parse_detail(html: HTMLParser) -> Product:
+    def extract_text(html: HTMLParser, selector: str, index: int) -> str:
         try:
             return html.css(selector)[index].text(strip=True)
         except IndexError:
@@ -57,7 +57,7 @@ def parse_detail(html) -> Product:
     )
     return new_product
 
-def detail_page_loop(client, page) -> None:
+def detail_page_loop(client: Client, page: Response) -> None:
     base_url = BASE_URL
     product_links = parse_links(page.body_html)
     for link in product_links:
@@ -65,20 +65,20 @@ def detail_page_loop(client, page) -> None:
         product = parse_detail(detail_page.body_html)
         print(product)
 
-def parse_links(html):
+def parse_links(html: HTMLParser) -> set[str]:
     links = html.css('div#search-results > ul li > a')
     return {link.attrs['href'] for link in links}
 
 
-def pagination_loop(client):
+def pagination_loop(client: Client) -> None:
     url = PRODUCT_PAGE_URL
     for page in parse_pages(client, url):
         #print(parse_links(page.body_html))
         detail_page_loop(client, page)
 
 
-def main():
-    with httpx.Client() as client:
+def main() -> None:
+    with Client() as client:
         pagination_loop(client)
 
 if __name__ == '__main__':
