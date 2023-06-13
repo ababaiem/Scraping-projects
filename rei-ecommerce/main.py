@@ -5,6 +5,8 @@ from urllib.parse import urljoin
 from rich import print
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+BASE_URL = 'https://www.rei.com/'
+PRODUCT_PAGE_URL = 'https://www.rei.com/c/backpacks?page=22'
 
 @dataclass
 class Product:
@@ -19,9 +21,7 @@ class Response:
     next_page: dict
 
 def get_page(client, url):
-    headers = {
-        'User-Agent': USER_AGENT
-    }
+    headers = {'User-Agent': USER_AGENT}
     resp = client.get(url, headers=headers)
     html = HTMLParser(resp.text)
     if html.css_first('a[data-id=pagination-test-link-next]'):
@@ -46,7 +46,7 @@ def parse_detail(html):
     print(new_product)
 
 def detail_page_loop(client, page):
-    base_url = 'https://www.rei.com/'
+    base_url = BASE_URL
     product_links = parse_links(page.body_html)
     for link in product_links:
         detail_page = get_page(client, urljoin(base_url, link))
@@ -58,7 +58,7 @@ def parse_links(html):
 
 
 def pagination_loop(client):
-    url = 'https://www.rei.com/c/backpacks'
+    url = PRODUCT_PAGE_URL
     while True:
         page = get_page(client, url)
         #print(parse_links(page.body_html))
