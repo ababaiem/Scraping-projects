@@ -21,36 +21,49 @@ class Response:
     next_page: dict
 
 def get_page(client, url):
+    def get_next_page(html):
+        query = 'a[data-id=pagination-test-link-next]'
+        next_page = html.css_first(query)
+        return next_page.attributes if next_page else {'href': False}
     headers = {'User-Agent': USER_AGENT}
     resp = client.get(url, headers=headers)
     html = HTMLParser(resp.text)
-    if html.css_first('a[data-id=pagination-test-link-next]'):
-        next_page = html.css_first('a[data-id=pagination-test-link-next').attributes
-    else:
-        next_page = {'href': False}
+    next_page = get_next_page(html)
     return Response(body_html=html, next_page=next_page)
 
-def extract_text(html, selector, index):
-    try:
-        return html.css(selector)[index].text(strip=True)
-    except IndexError:
-        return 'none'
+def parse_pages(client, url):
+    pages = []
+    while True:
+        page = get_page(client, url)
+        pages.append(page)
+        if not page.next_page['href']:
+            break
+        url = urljoin(url, page.next_page['href'])
+        print(url)
+    return pages
 
-def parse_detail(html):
+
+def parse_detail(html) -> Product:
+    def extract_text(html, selector, index) -> str:
+        try:
+            return html.css(selector)[index].text(strip=True)
+        except IndexError:
+            return 'none'
     new_product = Product(
         name = extract_text(html, 'h1#product-page-title', 0),
         sku = extract_text(html, 'span.item-number', 0),
         price = extract_text(html, 'span.price-value', 0),
         rating = extract_text(html, 'span.cdr-rating__number_13-3-1', 0)
     )
-    print(new_product)
+    return new_product
 
-def detail_page_loop(client, page):
+def detail_page_loop(client, page) -> None:
     base_url = BASE_URL
     product_links = parse_links(page.body_html)
     for link in product_links:
         detail_page = get_page(client, urljoin(base_url, link))
-        parse_detail(detail_page.body_html)
+        product = parse_detail(detail_page.body_html)
+        print(product)
 
 def parse_links(html):
     links = html.css('div#search-results > ul li > a')
@@ -59,21 +72,14 @@ def parse_links(html):
 
 def pagination_loop(client):
     url = PRODUCT_PAGE_URL
-    while True:
-        page = get_page(client, url)
+    for page in parse_pages(client, url):
         #print(parse_links(page.body_html))
         detail_page_loop(client, page)
-        if page.next_page['href'] is False:
-            client.close()
-            break
-        else:
-            url = urljoin(url, page.next_page['href'])
-            print(url)
 
 
 def main():
-    client = httpx.Client()
-    pagination_loop(client)
+    with httpx.Client() as client:
+        pagination_loop(client)
 
 if __name__ == '__main__':
     main()
