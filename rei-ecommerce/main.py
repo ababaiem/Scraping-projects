@@ -60,7 +60,7 @@ def detail_page_loop(client: Client, page: Response) -> None:
     for link in product_links:
         detail_page = get_page(client, urljoin(base_url, link))
         product = parse_detail(detail_page.body_html)
-        print(product)
+        yield product
 
 def parse_links(html: HTMLParser) -> set[str]:
     links = html.css('div#search-results > ul li > a')
