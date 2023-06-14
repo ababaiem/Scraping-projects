@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from urllib.parse import urljoin
 from rich import print
 from collections.abc import Iterator
+from itertools import chain
+from functools import partial
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
 BASE_URL = 'https://www.rei.com/'
@@ -66,17 +68,14 @@ def parse_links(html: HTMLParser) -> set[str]:
     links = html.css('div#search-results > ul li > a')
     return {link.attrs['href'] for link in links}
 
-
-def pagination_loop(client: Client) -> None:
+def pagination_loop(client: Client) -> Iterator[list]:
     url = PRODUCT_PAGE_URL
-    for page in parse_pages(client, url):
-        #print(parse_links(page.body_html))
-        detail_page_loop(client, page)
-
+    fun = partial(detail_page_loop, client)
+    return chain.from_iterable(map(fun, parse_pages(client, url)))
 
 def main() -> None:
     with Client() as client:
-        pagination_loop(client)
+        print(*pagination_loop(client))
 
 if __name__ == '__main__':
     main()
