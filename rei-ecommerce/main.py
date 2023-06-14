@@ -3,6 +3,7 @@ from selectolax.parser import HTMLParser
 from dataclasses import dataclass
 from urllib.parse import urljoin
 from rich import print
+from collections.abc import Iterator
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
 BASE_URL = 'https://www.rei.com/'
@@ -31,17 +32,13 @@ def get_page(client: Client, url: str) -> Response:
     next_page = get_next_page(html)
     return Response(body_html=html, next_page=next_page)
 
-def parse_pages(client: Client, url: str) -> list[Response]:
-    pages = []
+def parse_pages(client: Client, url: str) -> Iterator[Response]:
     while True:
         page = get_page(client, url)
-        pages.append(page)
+        yield page
         if not page.next_page['href']:
             break
         url = urljoin(url, page.next_page['href'])
-        print(url)
-    return pages
-
 
 def parse_detail(html: HTMLParser) -> Product:
     def extract_text(html: HTMLParser, selector: str, index: int) -> str:
